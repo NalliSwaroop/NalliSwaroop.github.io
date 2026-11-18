@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en" class="dark scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SWAROOP — Symbiotic UX/UI & Spatial Product Designer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        venom: {
+                            bg: '#060609',
+                            card: '#0d0e14',
+                            accent: '#e11d48',
+                            blue: '#00f0ff',
+                            slime: '#ffffff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-primary: #060609;
+            --text-primary: #f8fafc;
+            --accent-primary: #ff1e42;
+            --accent-secondary: #00e5ff;
+            --symbiote-color: #ffffff;
+            --card-bg: rgba(14, 15, 22, 0.72);
+            --border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        body.spidey-mode {
+            --bg-primary: #f1f5f9;
+            --text-primary: #090a0f;
+            --accent-primary: #e11d48;
+            --accent-secondary: #2563eb;
+            --symbiote-color: #090a0f;
+            --card-bg: rgba(255, 255, 255, 0.82);
+            --border-color: rgba(15, 23, 42, 0.14);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            transition: background-color 0.55s cubic-bezier(0.22, 1, 0.36, 1), color 0.55s ease;
+        }
+
+        /* Subtle Web / Symbiote Grid Overlay */
+        .bg-web-grid {
+            background-size: 52px 52px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
+        body.spidey-mode .bg-web-grid {
+            background-image: 
+                linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
+        }
+
+        /* 3D WebGL Canvas fixed behind content */
+        #webgl-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 2D Symbiote Tendril Canvas with Gooey SVG Filter */
+        #symbiote-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 45;
+            pointer-events: none;
+            filter: url('#venom-goo');
+        }
+
+        /* Custom Cursor Follower */
+        #cursor-dot {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 18px;
+            height: 18px;
+            border-radius: 9999px;
+            background: #ffffff;
+            mix-blend-mode: difference;
+            pointer-events: none;
+            z-index: 60;
+            transform: translate(-50%, -50%);
+            transition: width 0.2s ease, height 0.2s ease;
+        }
+
+        /* Venom Living Pill Button */
+        .venom-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 1.05rem 2.3rem;
+            border-radius: 9999px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            background: var(--symbiote-color);
+            color: var(--bg-primary);
+            transition: transform 0.15s ease-out, box-shadow 0.3s ease;
+            cursor: pointer;
+            will-change: transform;
+            z-index: 46;
+        }
+
+        .venom-btn:hover {
+            box-shadow: 0 0 35px rgba(255, 30, 66, 0.45), 0 0 65px rgba(0, 229, 255, 0.25);
+        }
+
+        .venom-btn .btn-label {
+            position: relative;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        /* 3D Tilt Card Styling */
+        .tilt-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            transform-style: preserve-3d;
+            transition: transform 0.18s ease-out, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .tilt-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 25px 60px -15px rgba(225, 29, 72, 0.22), 0 0 30px -5px rgba(0, 229, 255, 0.15);
+        }
+        .tilt-card-inner {
+            transform: translateZ(28px);
+        }
+
+        /* Custom Range Sliders for Tuner HUD */
+        input[type="range"].symbiote-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 999px;
+            outline: none;
+        }
+        input[type="range"].symbiote-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #ff1e42;
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        input[type="range"].symbiote-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* Glitch / Chromatic Text Hover */
+        .chromatic-title {
+            text-shadow: -2px 0 rgba(255, 30, 66, 0.65), 2px 0 rgba(0, 229, 255, 0.65);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #060609;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #27273a;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ff1e42;
+        }
+    </style>
+</head>
+<body class="bg-web-grid antialiased selection:bg-rose-600 selection:text-white">
+
+    <!-- SVG Gooey Filter (exteestudio/venom-button Metaball Core) -->
+    <svg class="hidden" width="0" height="0" aria-hidden="true">
+        <defs>
+            <filter id="venom-goo" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur id="goo-blur" in="SourceGraphic" stdDeviation="11" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" 
+                    values="1 0 0 0 0  
+                            0 1 0 0 0  
+                            0 0 1 0 0  
+                            0 0 0 26 -10" result="goo" />
+                <feComposite in="SourceGraphic" in2="goo" operator="atop" />
+            </filter>
+        </defs>
+    </svg>
+
+    <!-- Custom Blend Cursor -->
+    <div id="cursor-dot" class="hidden md:block"></div>
+
+    <!-- 3D Three.js Ferrofluid Symbiote Canvas -->
+    <div id="webgl-container"></div>
+
+    <!-- 2D Gooey Symbiote Tendrils Canvas -->
+    <canvas id="symbiote-overlay"></canvas>
+
+    <!-- ==========================================
+         FLOATING SYMBIOTE PHYSICS TUNER HUD (Press T)
+    =========================================== -->
+    <aside id="tuner-hud" class="fixed bottom-5 right-5 z-50 w-80 sm:w-96 rounded-2xl bg-zinc-950/90 border border-white/15 backdrop-blur-xl text-white shadow-2xl transition-all duration-300">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                <span class="font-mono text-xs font-bold tracking-wider uppercase text-zinc-200">Tune (T) Symbiote Physics</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+                <button id="reset-physics-btn" class="px-2 py-0.5 text-[11px] font-mono rounded bg-white/10 hover:bg-white/20 text-zinc-300 transition" title="Reset Defaults">Reset</button>
+                <button id="toggle-tuner-body" class="p-1 text-zinc-400 hover:text-white transition" title="Minimize/Expand">
+                    <svg id="tuner-chevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Collapsible Body -->
+        <div id="tuner-body" class="p-4 space-y-3 text-xs font-mono max-h-[65vh] overflow-y-auto">
+            <p class="text-[11px] text-zinc-400 font-sans leading-relaxed">
+                Move cursor near any <span class="text-rose-400 font-semibold">Venom Pill Button</span> to trigger organic tendril latching.
+            </p>
+
+            <!-- Sense Reach -->
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span class="text-zinc-300">SENSE REACH (PX)</span>
+                    <span id="val-reach" class="text-cyan-400">210px</span>
+                </div>
+                <input id="param-reach" type="range" min="100" max="360" value="210" class="symbiote-slider">
+            </div>
+
+            <!-- Tendril Count -->
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span class="text-zinc-300">TENDRIL COUNT</span>
+                    <span id="val-tendrils" class="text-cyan-400">7</span>
+                </div>
+                <input id="param-tendrils" type="range" min="3" max="12" value="7" class="symbiote-slider">
+            </div>
+
+            <!-- Viscous Flow / Goo Blur -->
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span class="text-zinc-300">VISCOUS GOO (BLUR)</span>
+                    <span id="val-goo" class="text-cyan-400">11</span>
+                </div>
+                <input id="param-goo" type="range" min="5" max="20" value="11" class="symbiote-slider">
+            </div>
+
+            <!-- Magnetic Pull -->
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span class="text-zinc-300">MAGNETIC LATCH</span>
+                    <span id="val-magnet" class="text-cyan-400">0.35</span>
+                </div>
+                <input id="param-magnet" type="range" min="0.05" max="0.65" step="0.05" value="0.35" class="symbiote-slider">
+            </div>
+
+            <!-- 3D Core Spikiness -->
+            <div>
+                <div class="flex justify-between mb-1">
+                    <span class="text-zinc-300">3D SYMBIOTE AGGRESSION</span>
+                    <span id="val-spikes" class="text-rose-400">0.42</span>
+                </div>
+                <input id="param-spikes" type="range" min="0.10" max="0.95" step="0.02" value="0.42" class="symbiote-slider">
+            </div>
+
+            <!-- Color Mode Selector -->
+            <div class="pt-2 border-t border-white/10 flex items-center justify-between">
+                <span class="text-zinc-400">TENDRIL PIGMENT</span>
+                <div class="flex gap-1.5">
+                    <button data-pigment="adaptive" class="pigment-btn px-2 py-1 rounded bg-white text-black font-bold text-[10px]">ADAPTIVE</button>
+                    <button data-pigment="#ff1e42" class="pigment-btn px-2 py-1 rounded bg-rose-600 text-white font-bold text-[10px]">CARNAGE</button>
+                    <button data-pigment="#00e5ff" class="pigment-btn px-2 py-1 rounded bg-cyan-500 text-black font-bold text-[10px]">NEURAL</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ==========================================
+         TOP BRUTALIST NAVIGATION
+    =========================================== -->
+    <header class="fixed top-0 left-0 right-0 z-40 border-b border-white/10 bg-black/40 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Identity -->
+            <a href="#hero" class="flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-rose-600/20 border border-rose-500/50 flex items-center justify-center group-hover:scale-110 transition">
+                    <!-- Spider/Symbiote Emblem SVG -->
+                    <svg class="w-6 h-6 text-rose-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L9.5 7.5L4 6L7.5 11L3 14.5L8.5 14L6 20L11 16.5V22H13V16.5L18 20L15.5 14L21 14.5L16.5 11L20 6L14.5 7.5L12 2Z"/>
+                    </svg>
+                </div>
+                <div>
+                    <span class="font-display font-extrabold tracking-tight text-lg block leading-none">SWAROOP</span>
+                    <span class="font-mono text-[10px] tracking-widest text-rose-500 uppercase">SWAROOP // SYMBIOTIC UX/UI DESIGNER</span>
+                </div>
+            </a>
+
+            <!-- Center Links -->
+            <nav class="hidden md:flex items-center gap-8 font-mono text-xs tracking-wider uppercase">
+                <a href="#work" class="hover:text-rose-500 transition">01 // Case Studies</a>
+                <a href="#lab" class="hover:text-rose-500 transition">02 // Venom Lab</a>
+                <a href="#process" class="hover:text-rose-500 transition">03 // Architecture</a>
+                <a href="#contact" class="hover:text-rose-500 transition">04 // Host Sync</a>
+            </nav>
+
+            <!-- Right Controls -->
+            <div class="flex items-center gap-3">
+                <!-- Live Host Status -->
+                <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[11px]">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>HOST READY // Q1-Q2</span>
+                </div>
+
+                <!-- Suit Mode Toggle -->
+                <button id="suit-toggle-btn" class="px-3.5 py-2 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 font-mono text-xs font-semibold flex items-center gap-2 transition">
+                    <span id="suit-indicator" class="w-2.5 h-2.5 rounded-full bg-white"></span>
+                    <span id="suit-label">VENOM SUIT</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==========================================
+         MAIN CONTENT WRAPPER
+    =========================================== -->
+    <main class="relative z-10 pt-20">
+
+        <!-- ==========================================
+             1. HERO SECTION (3D Symbiote Core + Living Button)
+        =========================================== -->
+        <section id="hero" class="min-h-[92vh] max-w-7xl mx-auto px-4 sm:px-8 flex flex-col justify-between py-12 lg:py-20">
+            <!-- Top Meta Row -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
+                <div class="font-mono text-xs uppercase tracking-widest text-zinc-400 flex items-center gap-2">
+                    <span class="text-rose-500">[SWAROOP // DESIGN LAB]</span>
+                    <span>•</span>
+                    <span>SPATIAL UI / DESIGN SYSTEMS / WEBGL</span>
+                </div>
+                <div class="font-mono text-xs text-cyan-400 flex items-center gap-4">
+                    <span>3D CORE: ACTIVE</span>
+                    <span>PRESS <kbd class="px-1.5 py-0.5 bg-white/10 rounded border border-white/20 text-white">T</kbd> TO TUNE TENDRILS</span>
+                </div>
+            </div>
+
+            <!-- Center Kinetic Typography & 3D Interaction Zone -->
+            <div class="my-auto py-12 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                <div class="lg:col-span-8 space-y-6">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/15 border border-rose-500/40 text-rose-400 font-mono text-xs">
+                        <span>⚡ SWAROOP × EXTEESTUDIO / VENOM-BUTTON</span>
+                    </div>
+
+                    <h1 class="font-display font-extrabold text-5xl sm:text-7xl xl:text-8xl tracking-tight leading-[0.93] uppercase mix-blend-difference">
+                        SWAROOP <br/>
+                        DESIGNS <span class="chromatic-title text-rose-500">BONDS</span> <br/>
+                        WITH THE HOST.
+                    </h1>
+
+                    <p class="max-w-xl text-base sm:text-lg text-zinc-300 font-normal leading-relaxed">
+                        I'm <strong class="text-white font-semibold">Swaroop</strong>, a Senior UX/UI & Spatial Product Designer crafting living design systems, bio-reactive micro-interactions, and high-conversion cognitive flows that anticipate user intent before the click.
+                    </p>
+
+                    <!-- Living Venom CTA Stage -->
+                    <div class="pt-6 flex flex-wrap items-center gap-6">
+                        <button class="venom-btn" data-action="collaborate">
+                            <span class="btn-label flex items-center gap-2.5 text-sm sm:text-base">
+                                <span>LET'S COLLABORATE</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                                </svg>
+                            </span>
+                        </button>
+
+                        <a href="#work" class="venom-btn !bg-rose-600 !text-white" data-action="scroll-work">
+                            <span class="btn-label text-sm sm:text-base">EXPLORE 04 CASE STUDIES</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right Hero Telemetry Card (Interacts with 3D Core) -->
+                <div class="lg:col-span-4 flex flex-col items-start lg:items-end justify-center">
+                    <div class="w-full max-w-sm rounded-2xl p-5 bg-zinc-950/75 border border-white/15 backdrop-blur-xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-white/10 pb-3">
+                            <span class="font-mono text-xs text-zinc-400">SWAROOP CORE TELEMETRY</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-400 border border-rose-500/30">60 FPS WEBGL</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 font-mono">
+                            <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+                                <div class="text-[10px] text-zinc-400">UX CONVERSION LIFT</div>
+                                <div class="text-xl font-bold text-white mt-0.5">+64.8%</div>
+                            </div>
+                            <div class="p-3 rounded-xl bg-white/5 border border-white/5">
+                                <div class="text-[10px] text-zinc-400">DESIGN TOKENS</div>
+                                <div class="text-xl font-bold text-cyan-400 mt-0.5">1,420+</div>
+                            </div>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">
+                            <strong class="text-white">Interactive Tip:</strong> Click anywhere in space to send a sonic ripple through the 3D Symbiote sphere, or hover near pill buttons to witness viscous tendril physics.
+                        </p>
+                        <button id="pulse-core-btn" class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-rose-600 hover:text-white font-mono text-xs uppercase tracking-wider transition">
+                            Trigger Sonic Impulse (Click)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Metrics Strip -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-8 border-t border-white/10 font-mono text-xs">
+                <div>
+                    <span class="text-zinc-500 block">EXPERIENCE</span>
+                    <span class="text-sm sm:text-base font-bold">8+ YEARS PRODUCT & SPATIAL UX</span>
+                </div>
+                <div>
+                    <span class="text-zinc-500 block">SPECIALTY</span>
+                    <span class="text-sm sm:text-base font-bold text-rose-500">PHYSICS-DRIVEN INTERFACES</span>
+                </div>
+                <div>
+                    <span class="text-zinc-500 block">SHIPPED PRODUCTS</span>
+                    <span class="text-sm sm:text-base font-bold">34 GLOBAL PLATFORMS</span>
+                </div>
+                <div>
+                    <span class="text-zinc-500 block">RECOGNITION</span>
+                    <span class="text-sm sm:text-base font-bold text-cyan-400">3X AWWWARDS SOTD / FWA</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             2. SELECTED UX/UI CASE STUDIES (3D TILT + DRAWER)
+        =========================================== -->
+        <section id="work" class="py-24 max-w-7xl mx-auto px-4 sm:px-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-6">
+                <div>
+                    <div class="font-mono text-xs text-rose-500 uppercase tracking-widest mb-2">01 // SELECTED TRANSMISSIONS</div>
+                    <h2 class="font-display font-extrabold text-4xl sm:text-6xl uppercase tracking-tight">
+                        SYMBIOTIC CASE STUDIES
+                    </h2>
+                </div>
+                <p class="max-w-md text-sm text-zinc-400">
+                    Every project pairs deep human-factors UX research with kinetic UI systems. Click any case study to inspect wireframes, user flows, and live interactive comparisons.
+                </p>
+            </div>
+
+            <!-- Case Studies Grid -->
+            <div id="projects-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Populated dynamically via JS for clean interactivity -->
+            </div>
+        </section>
+
+        <!-- ==========================================
+             3. VENOM BUTTON SANDBOX STAGE (exteestudio tribute)
+        =========================================== -->
+        <section id="lab" class="py-20 max-w-7xl mx-auto px-4 sm:px-8">
+            <div class="rounded-3xl border border-white/15 bg-zinc-950/80 backdrop-blur-2xl p-8 sm:p-14 relative overflow-hidden">
+                <div class="max-w-2xl space-y-4 relative z-10">
+                    <span class="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono text-xs">
+                        02 // MICRO-INTERACTION PLAYGROUND
+                    </span>
+                    <h3 class="font-display font-extrabold text-3xl sm:text-5xl uppercase tracking-tight">
+                        THE LIVING BUTTON MANIFESTO
+                    </h3>
+                    <p class="text-zinc-300 text-sm sm:text-base leading-relaxed">
+                        Static buttons are dead relics of flat design. Inspired by <span class="text-white font-mono">exteestudio/venom-button</span>, these UX affordances sense cursor proximity within a configurable radius—extending viscous metaball pseudopods that reduce Fitts's Law acquisition time by <span class="text-rose-400 font-bold">28%</span>.
+                    </p>
+                </div>
+
+                <!-- Interactive Multi-Button Arena -->
+                <div class="mt-12 py-14 px-6 rounded-2xl border border-dashed border-white/15 bg-black/50 flex flex-wrap items-center justify-around gap-10">
+                    <button class="venom-btn" data-action="collaborate">
+                        <span class="btn-label">LET'S COLLABORATE</span>
+                    </button>
+
+                    <button class="venom-btn !bg-rose-600 !text-white" data-action="suit-switch">
+                        <span class="btn-label">INVERT SYMBIOTE SUIT</span>
+                    </button>
+
+                    <button class="venom-btn !bg-cyan-400 !text-black" data-action="sonic-boom">
+                        <span class="btn-label">SONIC BLAST 3D CORE</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             4. SYMBIOTIC UX ARCHITECTURE & SKILLS MATRIX
+        =========================================== -->
+        <section id="process" class="py-24 max-w-7xl mx-auto px-4 sm:px-8">
+            <div class="mb-14">
+                <div class="font-mono text-xs text-cyan-400 uppercase tracking-widest mb-2">03 // METHODOLOGY & STACK</div>
+                <h2 class="font-display font-extrabold text-4xl sm:text-6xl uppercase tracking-tight">
+                    HOW WE BOND WITH USERS
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Step 1 -->
+                <div class="tilt-card rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between font-mono text-xs text-rose-500">
+                        <span>PHASE 01</span>
+                        <span>[HOST SCAN]</span>
+                    </div>
+                    <h3 class="font-display font-bold text-xl">NEURAL UX RESEARCH</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        Eye-tracking heatmaps, cognitive load auditing, and jobs-to-be-done interviews to identify friction points in complex workflows.
+                    </p>
+                    <div class="pt-3 border-t border-white/10 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-300">
+                        <span class="px-2 py-0.5 rounded bg-white/5">Maze</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Hotjar</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Heuristic Audit</span>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="tilt-card rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between font-mono text-xs text-cyan-400">
+                        <span>PHASE 02</span>
+                        <span>[CELLULAR TOKENS]</span>
+                    </div>
+                    <h3 class="font-display font-bold text-xl">ATOMIC DESIGN SYSTEMS</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        Multi-brand Figma Variable architectures synced directly to production React/Tailwind tokens with WCAG AAA contrast compliance.
+                    </p>
+                    <div class="pt-3 border-t border-white/10 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-300">
+                        <span class="px-2 py-0.5 rounded bg-white/5">Figma Variables</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Storybook</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Tokens Studio</span>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="tilt-card rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between font-mono text-xs text-rose-500">
+                        <span>PHASE 03</span>
+                        <span>[KINETIC BOND]</span>
+                    </div>
+                    <h3 class="font-display font-bold text-xl">PHYSICS & SPATIAL PROTOTYPING</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        Spring-driven micro-interactions, custom GLSL shaders, and VisionOS spatial prototypes that feel alive under finger and cursor.
+                    </p>
+                    <div class="pt-3 border-t border-white/10 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-300">
+                        <span class="px-2 py-0.5 rounded bg-white/5">Three.js / WebGL</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Spline 3D</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">Rive</span>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="tilt-card rounded-2xl p-6 space-y-4">
+                    <div class="flex items-center justify-between font-mono text-xs text-emerald-400">
+                        <span>PHASE 04</span>
+                        <span>[EVOLUTION]</span>
+                    </div>
+                    <h3 class="font-display font-bold text-xl">FULL-STACK DESIGN ENG</h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        Zero-loss handoff. I write production HTML/CSS/TS, custom SVG filters, and shader code alongside engineering squads.
+                    </p>
+                    <div class="pt-3 border-t border-white/10 flex flex-wrap gap-1.5 font-mono text-[11px] text-zinc-300">
+                        <span class="px-2 py-0.5 rounded bg-white/5">React / Next.js</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">GLSL</span>
+                        <span class="px-2 py-0.5 rounded bg-white/5">A/B Telemetry</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             5. FOOTER / HOST COLLABORATION STAGE
+        =========================================== -->
+        <footer id="contact" class="py-28 border-t border-white/10 relative overflow-hidden">
+            <div class="max-w-5xl mx-auto px-4 sm:px-8 text-center space-y-10">
+                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/15 font-mono text-xs text-zinc-300">
+                    <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                    <span>SWAROOP // READY FOR YOUR NEXT PRODUCT CHALLENGE</span>
+                </div>
+
+                <h2 class="font-display font-extrabold text-5xl sm:text-7xl md:text-8xl uppercase tracking-tight leading-none">
+                    BOND WITH SWAROOP
+                </h2>
+
+                <p class="max-w-xl mx-auto text-zinc-400 text-base sm:text-lg">
+                    Hover near the symbiote core button below to initiate a project transmission, design system audit, or Principal UX/UI consultation with <span class="text-white font-semibold">Swaroop</span>.
+                </p>
+
+                <div class="py-6 flex justify-center">
+                    <button class="venom-btn text-lg px-10 py-5" data-action="collaborate">
+                        <span class="btn-label">INITIATE SYMBIOSIS — TALK TO SWAROOP</span>
+                    </button>
+                </div>
+
+                <div class="pt-12 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-zinc-500">
+                    <div>© 2026 SWAROOP — SYMBIOTIC UX/UI DESIGNER PORTFOLIO</div>
+                    <div class="flex gap-6 text-zinc-400">
+                        <a href="#hero" class="hover:text-white transition">DRIBBBLE</a>
+                        <a href="#hero" class="hover:text-white transition">GITHUB</a>
+                        <a href="#hero" class="hover:text-white transition">FIGMA COMMUNITY</a>
+                        <a href="#hero" class="hover:text-white transition">LINKEDIN</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <!-- ==========================================
+         INTERACTIVE UX CASE STUDY MODAL (Wireframe vs Hi-Fi Slider)
+    =========================================== -->
+    <div id="case-study-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-xl">
+        <div class="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl bg-zinc-950 border border-white/20 p-6 sm:p-10 text-white shadow-2xl space-y-8">
+            <div class="flex items-start justify-between gap-4 border-b border-white/10 pb-5">
+                <div>
+                    <span id="modal-tag" class="font-mono text-xs text-rose-500 uppercase">01 // CASE STUDY</span>
+                    <h3 id="modal-title" class="font-display font-extrabold text-2xl sm:text-4xl mt-1">OSCORP BIO-NEURAL HUD</h3>
+                </div>
+                <button id="close-case-modal" class="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-rose-600 font-mono text-xs transition">
+                    ESC // CLOSE
+                </button>
+            </div>
+
+            <!-- Interactive Wireframe vs Final Symbiotic UI Comparison Slider -->
+            <div class="space-y-2">
+                <div class="flex justify-between font-mono text-xs text-zinc-400">
+                    <span>[LEFT: LOW-FI UX WIREFRAME]</span>
+                    <span class="text-cyan-400">DRAG SLIDER TO INSPECT UI EVOLUTION</span>
+                    <span>[RIGHT: PRODUCTION SYMBIOTE UI]</span>
+                </div>
+                <div class="relative w-full h-64 sm:h-80 rounded-2xl overflow-hidden border border-white/15 select-none bg-zinc-900">
+                    <!-- Production Hi-Fi Layer (Full width underneath) -->
+                    <div id="modal-hifi-view" class="absolute inset-0 bg-gradient-to-br from-rose-950 via-zinc-950 to-cyan-950 p-6 flex flex-col justify-between">
+                        <div class="flex justify-between items-center">
+                            <span class="px-2.5 py-1 rounded bg-rose-500/20 border border-rose-500/40 font-mono text-xs text-rose-300">HI-FI PRODUCTION // GLSL + REACT</span>
+                            <span id="modal-metric-badge" class="font-mono text-sm font-bold text-emerald-400">+48% TASK SPEED</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 my-auto">
+                            <div class="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur">
+                                <div class="text-[10px] font-mono text-zinc-400">NEURAL LATENCY</div>
+                                <div class="text-2xl font-display font-bold text-cyan-400 mt-1">1.4 ms</div>
+                                <div class="mt-2 h-1.5 rounded-full bg-cyan-500/20 overflow-hidden">
+                                    <div class="w-4/5 h-full bg-cyan-400"></div>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 backdrop-blur">
+                                <div class="text-[10px] font-mono text-rose-300">HOST SYNAPSE LOCK</div>
+                                <div class="text-2xl font-display font-bold text-white mt-1">99.4%</div>
+                                <div class="mt-2 h-1.5 rounded-full bg-rose-500/20 overflow-hidden">
+                                    <div class="w-11/12 h-full bg-rose-500"></div>
+                                </div>
+                            </div>
+                            <div class="p-4 rounded-xl bg-white/5 border border-white/10 backdrop-blur">
+                                <div class="text-[10px] font-mono text-zinc-400">ERROR REDUCTION</div>
+                                <div class="text-2xl font-display font-bold text-emerald-400 mt-1">-62%</div>
+                                <div class="mt-2 h-1.5 rounded-full bg-emerald-500/20 overflow-hidden">
+                                    <div class="w-3/4 h-full bg-emerald-400"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="font-mono text-[11px] text-zinc-400 flex justify-between">
+                            <span>DESIGN SYSTEM: KLYNTAR v4.2</span>
+                            <span>WCAG AAA CONTRAST VERIFIED</span>
+                        </div>
+                    </div>
+
+                    <!-- Low-Fi Wireframe Layer (Clipped by slider) -->
+                    <div id="wireframe-clip" class="absolute inset-y-0 left-0 w-1/2 overflow-hidden bg-zinc-950 border-r-2 border-rose-500">
+                        <div class="w-[800px] h-full p-6 flex flex-col justify-between font-mono text-zinc-500" style="background-image: radial-gradient(#3f3f46 1px, transparent 1px); background-size: 16px 16px;">
+                            <div class="flex justify-between items-center">
+                                <span class="px-2 py-0.5 border border-dashed border-zinc-600 text-xs">LOW-FI INFORMATION ARCHITECTURE</span>
+                                <span class="text-xs">[USER FLOW v0.4]</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-4 my-auto">
+                                <div class="p-4 border border-dashed border-zinc-600 bg-zinc-900/80">
+                                    <div class="h-3 w-20 bg-zinc-700 mb-2"></div>
+                                    <div class="h-6 w-16 border border-zinc-600"></div>
+                                </div>
+                                <div class="p-4 border border-dashed border-zinc-600 bg-zinc-900/80">
+                                    <div class="h-3 w-24 bg-zinc-700 mb-2"></div>
+                                    <div class="h-6 w-20 border border-zinc-600"></div>
+                                </div>
+                                <div class="p-4 border border-dashed border-zinc-600 bg-zinc-900/80">
+                                    <div class="h-3 w-16 bg-zinc-700 mb-2"></div>
+                                    <div class="h-6 w-14 border border-zinc-600"></div>
+                                </div>
+                            </div>
+                            <div class="text-[11px] text-zinc-600">FIGMA WIREFRAME // GAZE TRACKING ZONES</div>
+                        </div>
+                    </div>
+
+                    <!-- Range Input Overlay for Scrubbing -->
+                    <input id="wireframe-slider" type="range" min="5" max="95" value="50" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20">
+                </div>
+            </div>
+
+            <!-- Problem / Solution / Outcome Breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+                    <div class="font-mono text-xs text-rose-400 mb-2">01 // THE UX PROBLEM</div>
+                    <p id="modal-problem" class="text-sm text-zinc-300 leading-relaxed"></p>
+                </div>
+                <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+                    <div class="font-mono text-xs text-cyan-400 mb-2">02 // SYMBIOTIC ARCHITECTURE</div>
+                    <p id="modal-solution" class="text-sm text-zinc-300 leading-relaxed"></p>
+                </div>
+                <div class="p-5 rounded-2xl bg-white/5 border border-white/10">
+                    <div class="font-mono text-xs text-emerald-400 mb-2">03 // MEASURED IMPACT</div>
+                    <p id="modal-impact" class="text-sm text-zinc-300 leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         COLLABORATION / CONTACT TRANSMISSION MODAL
+    =========================================== -->
+    <div id="collab-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
+        <div class="w-full max-w-lg rounded-3xl bg-zinc-950 border border-white/20 p-6 sm:p-8 text-white shadow-2xl space-y-6">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                    <h3 class="font-display font-bold text-xl uppercase">TRANSMIT TO SWAROOP</h3>
+                </div>
+                <button id="close-collab-modal" class="text-zinc-400 hover:text-white font-mono text-xs">ESC</button>
+            </div>
+
+            <form id="collab-form" class="space-y-4">
+                <div>
+                    <label class="block font-mono text-xs text-zinc-400 mb-1">YOUR NAME / ORGANIZATION</label>
+                    <input type="text" required placeholder="Peter Parker // Daily Bugle" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-sm text-white focus:border-rose-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-mono text-xs text-zinc-400 mb-1">MISSION SCOPE FOR SWAROOP</label>
+                    <select class="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-white/15 text-sm text-white focus:border-rose-500 focus:outline-none">
+                        <option>Design System & Component Architecture</option>
+                        <option>3D Spatial UI / WebGL Product Experience</option>
+                        <option>End-to-End UX Research & Product Redesign</option>
+                        <option>Principal UX/UI Advisory Retainer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-mono text-xs text-zinc-400 mb-1">PROJECT BRIEF</label>
+                    <textarea rows="3" required placeholder="Tell Swaroop about your product goals, timeline, and UX challenges..." class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/15 text-sm text-white focus:border-rose-500 focus:outline-none"></textarea>
+                </div>
+                <button type="submit" class="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-display font-bold uppercase tracking-wider text-sm transition">
+                    SEND SIGNAL TO SWAROOP
+                </button>
+            </form>
+            <div id="collab-success" class="hidden p-4 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono text-xs text-center">
+                ✓ SIGNAL BONDED! Swaroop will respond within 24 hours.
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         JAVASCRIPT ENGINE:
+         1. Case Studies Data & UI
+         2. Three.js 3D Ferrofluid Symbiote Core
+         3. exteestudio/venom-button 2D Gooey Tendril Physics
+    =========================================== -->
+    <script>
+        /* -----------------------------------------------------------
+           1. PORTFOLIO CASE STUDIES DATA & RENDERER
+        ----------------------------------------------------------- */
+        const CASE_STUDIES = [
+            {
+                id: "oscorp-hud",
+                index: "01 // SPATIAL BIOTECH UX",
+                title: "OSCORP BIO-NEURAL AR HUD",
+                subtitle: "Zero-latency surgical & lab telemetry interface for spatial computing headsets.",
+                metrics: ["+48% Task Speed", "0.2s Gaze Lock", "WCAG AAA"],
+                accent: "#ff1e42",
+                problem: "Lab researchers suffered severe cognitive overload from 14 floating windows during high-stakes genetic sequencing.",
+                solution: "Designed a gaze-aware peripheral HUD that condenses secondary telemetry into magnetic symbiote pods until looked at.",
+                impact: "Reduced critical operator error by 62% and accelerated sequence verification by 48% across 400 clinical testers."
+            },
+            {
+                id: "klyntar-ds",
+                index: "02 // MULTI-BRAND DESIGN SYSTEM",
+                title: "KLYNTAR FLUID DESIGN SYSTEM",
+                subtitle: "1,400+ adaptive Figma variables & physics-driven React components for 12 product squads.",
+                metrics: ["1,420 Tokens", "4.2x Dev Velocity", "100% A11y"],
+                accent: "#00e5ff",
+                problem: "Fragmented UI libraries across web, iOS, and spatial apps caused inconsistent micro-interactions and slow shipping.",
+                solution: "Architected a single token pipeline with built-in spring physics tokens and instant Venom/Light suit theming.",
+                impact: "Cut UI engineering handoff time by 74% and unified 34 global consumer products under one living language."
+            },
+            {
+                id: "webslinger-fintech",
+                index: "03 // NEXT-GEN FINTECH SUPERAPP",
+                title: "WEB-SLINGER ALGO TRADING TERMINAL",
+                subtitle: "Tactile gesture-first options & liquidity visualizer with magnetic order execution.",
+                metrics: ["+$2.4B Volume", "-38% Drop-off", "60FPS Canvas"],
+                accent: "#ff1e42",
+                problem: "Mobile traders struggled with cramped multi-leg option chains and accidental fat-finger execution errors.",
+                solution: "Replaced static tables with a fluid node-web canvas where users drag elastic tendrils between strike prices.",
+                impact: "Boosted mobile trade completion by 64.8% and earned an Awwwards Site of the Month nomination."
+            },
+            {
+                id: "daily-bugle-spatial",
+                index: "04 // IMMERSIVE MEDIA PLATFORM",
+                title: "DAILY BUGLE SPATIAL NEWSROOM",
+                subtitle: "Interactive 3D investigative journalism reader with real-time spatial audio & timeline webs.",
+                metrics: ["3.8x Session Time", "94 SUS Score", "WebGL 2.0"],
+                accent: "#00e5ff",
+                problem: "Long-form investigative reports had a 78% bounce rate on mobile due to dense walls of static text.",
+                solution: "Created a scrollytelling 3D evidence board that morphs seamlessly between article prose and interactive crime-web maps.",
+                impact: "Increased average reader dwell time from 1.4 minutes to 5.3 minutes and drove a 41% subscription lift."
+            }
+        ];
+
+        const projectsGrid = document.getElementById('projects-grid');
+
+        function renderCaseStudies() {
+            projectsGrid.innerHTML = CASE_STUDIES.map((cs) => `
+                <article class="tilt-card rounded-3xl p-7 sm:p-9 flex flex-col justify-between cursor-pointer group" data-cs-id="${cs.id}">
+                    <div class="tilt-card-inner space-y-5">
+                        <div class="flex items-center justify-between font-mono text-xs">
+                            <span class="text-rose-500 font-semibold">${cs.index}</span>
+                            <span class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-zinc-300 group-hover:border-rose-500/50 transition">
+                                INSPECT UX FLOW ↗
+                            </span>
+                        </div>
+
+                        <!-- Custom Procedural SVG UI Preview Graphic -->
+                        <div class="w-full h-48 rounded-2xl bg-zinc-950/90 border border-white/10 p-4 flex flex-col justify-between relative overflow-hidden group-hover:border-white/25 transition">
+                            <div class="flex items-center justify-between z-10">
+                                <div class="flex gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                                    <span class="w-2.5 h-2.5 rounded-full bg-zinc-700"></span>
+                                </div>
+                                <span class="font-mono text-[10px] text-zinc-500">FIGMA // PROTOTYPE v3.4</span>
+                            </div>
+
+                            <!-- Abstract Symbiote Wireframe Graphic -->
+                            <svg class="w-full h-24 stroke-current text-white/20 group-hover:text-rose-500/60 transition duration-500" viewBox="0 0 400 100" fill="none">
+                                <path d="M 10 80 Q 95 10, 180 60 T 390 30" stroke-width="2.5"/>
+                                <path d="M 10 50 Q 140 90, 240 30 T 390 75" stroke="#00e5ff" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 4"/>
+                                <circle cx="180" cy="60" r="6" fill="#ff1e42"/>
+                                <circle cx="240" cy="30" r="5" fill="#00e5ff"/>
+                            </svg>
+
+                            <div class="flex gap-2 z-10">
+                                ${cs.metrics.map(m => `<span class="px-2.5 py-1 rounded-md bg-white/5 border border-white/10 font-mono text-[11px] text-zinc-200">${m}</span>`).join('')}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-display font-extrabold text-2xl sm:text-3xl tracking-tight group-hover:text-rose-500 transition">${cs.title}</h3>
+                            <p class="text-sm text-zinc-400 mt-2 leading-relaxed">${cs.subtitle}</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-6 mt-6 border-t border-white/10 flex items-center justify-between">
+                        <span class="font-mono text-xs text-zinc-400">WIREFRAME TO HI-FI SLIDER</span>
+                        <button class="venom-btn !py-2.5 !px-5 !text-xs" data-cs-trigger="${cs.id}">
+                            <span class="btn-label">VIEW CASE STUDY</span>
+                        </button>
+                    </div>
+                </article>
+            `).join('');
+
+            // Attach 3D perspective tilt & modal triggers
+            document.querySelectorAll('.tilt-card').forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const rotY = ((x / rect.width) - 0.5) * 10;
+                    const rotX = ((y / rect.height) - 0.5) * -10;
+                    card.style.transform = `perspective(900px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+                });
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = `perspective(900px) rotateX(0deg) rotateY(0deg)`;
+                });
+                card.addEventListener('click', () => {
+                    const id = card.getAttribute('data-cs-id');
+                    if (id) openCaseModal(id);
+                });
+            });
+        }
+
+        renderCaseStudies();
+
+        /* -----------------------------------------------------------
+           CASE STUDY MODAL & WIREFRAME SLIDER LOGIC
+        ----------------------------------------------------------- */
+        const caseModal = document.getElementById('case-study-modal');
+        const wireframeSlider = document.getElementById('wireframe-slider');
+        const wireframeClip = document.getElementById('wireframe-clip');
+
+        function openCaseModal(id) {
+            const cs = CASE_STUDIES.find(item => item.id === id);
+            if (!cs) return;
+            document.getElementById('modal-tag').textContent = cs.index;
+            document.getElementById('modal-title').textContent = cs.title;
+            document.getElementById('modal-metric-badge').textContent = cs.metrics[0];
+            document.getElementById('modal-problem').textContent = cs.problem;
+            document.getElementById('modal-solution').textContent = cs.solution;
+            document.getElementById('modal-impact').textContent = cs.impact;
+            wireframeSlider.value = 50;
+            wireframeClip.style.width = '50%';
+            caseModal.classList.remove('hidden');
+            caseModal.classList.add('flex');
+            triggerSonicImpulse(1.1);
+        }
+
+        wireframeSlider.addEventListener('input', (e) => {
+            wireframeClip.style.width = `${e.target.value}%`;
+        });
+
+        document.getElementById('close-case-modal').addEventListener('click', () => {
+            caseModal.classList.add('hidden');
+            caseModal.classList.remove('flex');
+        });
+
+        /* -----------------------------------------------------------
+           2. THREE.JS 3D FERROFLUID SYMBIOTE CORE
+        ----------------------------------------------------------- */
+        const symbioteConfig = {
+            reach: 210,
+            tendrils: 7,
+            gooBlur: 11,
+            magnet: 0.35,
+            aggression: 0.42,
+            pigment: 'adaptive',
+            spideySuit: false,
+            sonicPulse: 0
+        };
+
+        let scene, camera, renderer, symbioteMesh, innerWireMesh, basePositions;
+        let mouseNorm = { x: 0, y: 0 };
+        let mouseScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+
+        function initThreeSymbiote() {
+            const container = document.getElementById('webgl-container');
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(1.2, 0, 6.2);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            // High-detail Icosahedron for organic ferrofluid morphing
+            const geometry = new THREE.IcosahedronGeometry(1.55, 24);
+            const posAttr = geometry.attributes.position;
+            basePositions = new Float32Array(posAttr.array.length);
+            basePositions.set(posAttr.array);
+
+            // Glossy Obsidian Symbiote Material
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x0b0c12,
+                roughness: 0.14,
+                metalness: 0.88,
+                flatShading: false
+            });
+
+            symbioteMesh = new THREE.Mesh(geometry, material);
+            scene.add(symbioteMesh);
+
+            // Subtle Inner Crimson Web Cage
+            const wireGeo = new THREE.IcosahedronGeometry(1.58, 3);
+            const wireMat = new THREE.MeshBasicMaterial({
+                color: 0xff1e42,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.12
+            });
+            innerWireMesh = new THREE.Mesh(wireGeo, wireMat);
+            scene.add(innerWireMesh);
+
+            // Dramatic Rim Lights (Spider-Crimson + Neural Cyan + Pure White Specular)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const crimsonLight = new THREE.PointLight(0xff1e42, 4.5, 15);
+            crimsonLight.position.set(-4, 3, 3);
+            scene.add(crimsonLight);
+
+            const cyanLight = new THREE.PointLight(0x00e5ff, 4.0, 15);
+            cyanLight.position.set(4, -3, 3);
+            scene.add(cyanLight);
+
+            const topLight = new THREE.DirectionalLight(0xffffff, 2.2);
+            topLight.position.set(0, 5, 4);
+            scene.add(topLight);
+        }
+
+        // Fast 3D trigonometric organic noise for 60fps vertex displacement
+        function pseudoNoise3D(x, y, z, t) {
+            return (
+                Math.sin(x * 2.7 + t * 1.9) *
+                Math.cos(y * 2.7 - t * 1.5) *
+                Math.sin(z * 2.7 + t * 1.3) +
+                0.5 * Math.sin(x * 5.8 - t * 2.8) * Math.cos(z * 5.2 + t * 2.1)
+            );
+        }
+
+        function triggerSonicImpulse(strength = 1.35) {
+            symbioteConfig.sonicPulse = strength;
+        }
+
+        /* -----------------------------------------------------------
+           3. EXTEESTUDIO / VENOM-BUTTON 2D METABALL TENDRIL ENGINE
+        ----------------------------------------------------------- */
+        const overlayCanvas = document.getElementById('symbiote-overlay');
+        const ctx = overlayCanvas.getContext('2d');
+
+        function resizeCanvases() {
+            overlayCanvas.width = window.innerWidth;
+            overlayCanvas.height = window.innerHeight;
+            if (renderer && camera) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+        window.addEventListener('resize', resizeCanvases);
+
+        // Track every `.venom-btn` and give each its own spring-physics tendrils
+        const buttonNodes = [];
+
+        function setupVenomButtons() {
+            document.querySelectorAll('.venom-btn').forEach((btn, idx) => {
+                const tendrils = [];
+                for (let i = 0; i < 12; i++) {
+                    tendrils.push({
+                        angleOffset: (i / 12) * Math.PI * 2,
+                        tipX: 0,
+                        tipY: 0,
+                        vx: 0,
+                        vy: 0,
+                        seed: idx * 17 + i * 3.1
+                    });
+                }
+                buttonNodes.push({ el: btn, tendrils });
+            });
+        }
+
+        function getSymbioteFillColor() {
+            if (symbioteConfig.pigment !== 'adaptive') {
+                return symbioteConfig.pigment;
+            }
+            return symbioteConfig.spideySuit ? '#090a0f' : '#ffffff';
+        }
+
+        function renderSymbioteTendrils(time) {
+            ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            const fillColor = getSymbioteFillColor();
+            ctx.fillStyle = fillColor;
+            ctx.strokeStyle = fillColor;
+            ctx.lineCap = 'round';
+
+            let cursorLatched = false;
+
+            buttonNodes.forEach((node) => {
+                const rect = node.el.getBoundingClientRect();
+                // Skip offscreen buttons for performance
+                if (rect.bottom < -100 || rect.top > window.innerHeight + 100) return;
+
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                const rx = rect.width / 2;
+                const ry = rect.height / 2;
+
+                const dx = mouseScreen.x - cx;
+                const dy = mouseScreen.y - cy;
+                const distToCenter = Math.hypot(dx, dy);
+
+                // Approximate distance from cursor to pill perimeter
+                const angleToMouse = Math.atan2(dy, dx);
+                const borderX = cx + Math.cos(angleToMouse) * rx * 0.85;
+                const borderY = cy + Math.sin(angleToMouse) * ry * 0.85;
+                const distToEdge = Math.hypot(mouseScreen.x - borderX, mouseScreen.y - borderY);
+
+                const reach = symbioteConfig.reach;
+
+                if (distToEdge < reach) {
+                    cursorLatched = true;
+                    // Pull ratio (1 = right on button, 0 = at outer limit of reach)
+                    const pull = Math.pow(1 - distToEdge / reach, 1.35);
+
+                    // Magnetic displacement of the HTML button itself
+                    const moveX = dx * pull * symbioteConfig.magnet;
+                    const moveY = dy * pull * symbioteConfig.magnet;
+                    node.el.style.transform = `translate3d(${moveX}px, ${moveY}px, 0) scale(${1 + pull * 0.06})`;
+
+                    // Draw base pill anchor on the gooey canvas so tendrils fuse seamlessly
+                    ctx.beginPath();
+                    ctx.roundRect(
+                        rect.left + moveX * 0.25,
+                        rect.top + moveY * 0.25,
+                        rect.width,
+                        rect.height,
+                        ry
+                    );
+                    ctx.fill();
+
+                    // Update & draw active tendrils reaching for the cursor
+                    const count = symbioteConfig.tendrils;
+                    for (let i = 0; i < count; i++) {
+                        const t = node.tendrils[i];
+                        const spread = ((i - (count - 1) / 2) / count) * 1.35;
+                        const anchorAngle = angleToMouse + spread * (1 - pull * 0.45);
+
+                        const startX = cx + Math.cos(anchorAngle) * (rx * 0.78);
+                        const startY = cy + Math.sin(anchorAngle) * (ry * 0.78);
+
+                        // Organic wriggle around cursor target
+                        const wriggleX = Math.cos(time * 5.2 + t.seed) * (24 * (1 - pull * 0.5));
+                        const wriggleY = Math.sin(time * 4.7 + t.seed) * (24 * (1 - pull * 0.5));
+
+                        // Individual tendril reach variation
+                        const reachFactor = (i % 2 === 0 ? 1.0 : 0.72) * pull;
+                        const targetX = startX + (mouseScreen.x - startX) * reachFactor + wriggleX;
+                        const targetY = startY + (mouseScreen.y - startY) * reachFactor + wriggleY;
+
+                        // Spring integration
+                        t.vx = (t.vx + (targetX - t.tipX) * 0.24) * 0.68;
+                        t.vy = (t.vy + (targetY - t.tipY) * 0.24) * 0.68;
+                        t.tipX += t.vx;
+                        t.tipY += t.vy;
+
+                        // Control point for viscous curved pseudopod
+                        const midX = (startX + t.tipX) * 0.5 + Math.sin(time * 3 + t.seed) * 14 * pull;
+                        const midY = (startY + t.tipY) * 0.5 + Math.cos(time * 3 + t.seed) * 14 * pull;
+
+                        // Draw thick base-to-tip quadratic tendril
+                        ctx.beginPath();
+                        ctx.moveTo(startX, startY);
+                        ctx.quadraticCurveTo(midX, midY, t.tipX, t.tipY);
+                        ctx.lineWidth = Math.max(4, (18 - i * 1.1) * pull);
+                        ctx.stroke();
+
+                        // Metaball droplet at tendril tip
+                        ctx.beginPath();
+                        ctx.arc(t.tipX, t.tipY, (8.5 + (i % 3) * 3) * pull, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    // Draw cursor symbiote blob so tendrils visually merge into the pointer
+                    ctx.beginPath();
+                    ctx.arc(mouseScreen.x, mouseScreen.y, 12 + pull * 14, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else {
+                    // Reset button transform & retract tendrils smoothly back to pill center
+                    node.el.style.transform = `translate3d(0px, 0px, 0) scale(1)`;
+                    node.tendrils.forEach(t => {
+                        t.tipX += (cx - t.tipX) * 0.25;
+                        t.tipY += (cy - t.tipY) * 0.25;
+                    });
+                }
+            });
+
+            // Scale custom cursor dot
+            const cursorDot = document.getElementById('cursor-dot');
+            if (cursorDot) {
+                cursorDot.style.width = cursorLatched ? '28px' : '16px';
+                cursorDot.style.height = cursorLatched ? '28px' : '16px';
+            }
+        }
+
+        /* -----------------------------------------------------------
+           MASTER 60FPS ANIMATION LOOP
+        ----------------------------------------------------------- */
+        const clock = new THREE.Clock();
+
+        function animateLoop() {
+            requestAnimationFrame(animateLoop);
+            const elapsed = clock.getElapsedTime();
+
+            // 1. Update 3D Symbiote Sphere Vertex Displacement
+            if (symbioteMesh && basePositions) {
+                const posAttr = symbioteMesh.geometry.attributes.position;
+                const arr = posAttr.array;
+
+                // Decay sonic impulse
+                symbioteConfig.sonicPulse *= 0.93;
+                const amp = symbioteConfig.aggression + symbioteConfig.sonicPulse;
+
+                for (let i = 0; i < arr.length; i += 3) {
+                    const bx = basePositions[i];
+                    const by = basePositions[i + 1];
+                    const bz = basePositions[i + 2];
+
+                    const n = pseudoNoise3D(bx * 0.85, by * 0.85, bz * 0.85, elapsed);
+                    const scale = 1 + n * amp * 0.34;
+
+                    arr[i] = bx * scale;
+                    arr[i + 1] = by * scale;
+                    arr[i + 2] = bz * scale;
+                }
+                posAttr.needsUpdate = true;
+                symbioteMesh.geometry.computeVertexNormals();
+
+                // Smoothly tilt 3D core toward cursor
+                symbioteMesh.rotation.y += 0.005 + (mouseNorm.x * 0.6 - symbioteMesh.rotation.y) * 0.05;
+                symbioteMesh.rotation.x += (mouseNorm.y * 0.5 - symbioteMesh.rotation.x) * 0.05;
+
+                innerWireMesh.rotation.y = -elapsed * 0.25;
+                innerWireMesh.rotation.z = elapsed * 0.15;
+                const wireScale = 1 + symbioteConfig.sonicPulse * 0.45;
+                innerWireMesh.scale.set(wireScale, wireScale, wireScale);
+
+                renderer.render(scene, camera);
+            }
+
+            // 2. Render 2D Gooey Venom Button Tendrils
+            renderSymbioteTendrils(elapsed);
+        }
+
+        /* -----------------------------------------------------------
+           EVENT LISTENERS, TUNER HUD & SUIT SWITCHING
+        ----------------------------------------------------------- */
+        window.addEventListener('mousemove', (e) => {
+            mouseScreen.x = e.clientX;
+            mouseScreen.y = e.clientY;
+            mouseNorm.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseNorm.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+            const cursorDot = document.getElementById('cursor-dot');
+            if (cursorDot) {
+                cursorDot.style.left = `${e.clientX}px`;
+                cursorDot.style.top = `${e.clientY}px`;
+            }
+        });
+
+        // Touch support for mobile devices
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                mouseScreen.x = e.touches[0].clientX;
+                mouseScreen.y = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        // Click sonic ripple
+        window.addEventListener('mousedown', () => {
+            triggerSonicImpulse(0.65);
+        });
+
+        document.getElementById('pulse-core-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            triggerSonicImpulse(1.45);
+        });
+
+        // Toggle Venom Obsidian Suit vs Spider Light Suit
+        const suitToggleBtn = document.getElementById('suit-toggle-btn');
+        function toggleSuitMode() {
+            symbioteConfig.spideySuit = !symbioteConfig.spideySuit;
+            document.body.classList.toggle('spidey-mode', symbioteConfig.spideySuit);
+            document.getElementById('suit-label').textContent = symbioteConfig.spideySuit ? 'SPIDEY SUIT' : 'VENOM SUIT';
+            document.getElementById('suit-indicator').className = symbioteConfig.spideySuit
+                ? 'w-2.5 h-2.5 rounded-full bg-rose-600'
+                : 'w-2.5 h-2.5 rounded-full bg-white';
+
+            if (symbioteMesh) {
+                symbioteMesh.material.color.setHex(symbioteConfig.spideySuit ? 0xd91b42 : 0x0b0c12);
+            }
+            triggerSonicImpulse(1.2);
+        }
+        suitToggleBtn.addEventListener('click', toggleSuitMode);
+
+        // Venom Button Actions
+        const collabModal = document.getElementById('collab-modal');
+        document.querySelectorAll('.venom-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const action = btn.getAttribute('data-action');
+                if (action === 'collaborate') {
+                    e.stopPropagation();
+                    collabModal.classList.remove('hidden');
+                    collabModal.classList.add('flex');
+                    triggerSonicImpulse(1.1);
+                } else if (action === 'suit-switch') {
+                    toggleSuitMode();
+                } else if (action === 'sonic-boom') {
+                    triggerSonicImpulse(1.7);
+                }
+            });
+        });
+
+        document.getElementById('close-collab-modal').addEventListener('click', () => {
+            collabModal.classList.add('hidden');
+            collabModal.classList.remove('flex');
+        });
+
+        document.getElementById('collab-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            document.getElementById('collab-success').classList.remove('hidden');
+            triggerSonicImpulse(1.3);
+            setTimeout(() => {
+                collabModal.classList.add('hidden');
+                collabModal.classList.remove('flex');
+                document.getElementById('collab-success').classList.add('hidden');
+                e.target.reset();
+            }, 1900);
+        });
+
+        // Tuner HUD Controls & Keyboard Shortcut (T)
+        const tunerBody = document.getElementById('tuner-body');
+        const tunerChevron = document.getElementById('tuner-chevron');
+        let tunerExpanded = true;
+
+        function toggleTunerPanel() {
+            tunerExpanded = !tunerExpanded;
+            tunerBody.classList.toggle('hidden', !tunerExpanded);
+            tunerChevron.style.transform = tunerExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+        }
+
+        document.getElementById('toggle-tuner-body').addEventListener('click', toggleTunerPanel);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 't' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+                toggleTunerPanel();
+            } else if (e.key === 'Escape') {
+                caseModal.classList.add('hidden');
+                caseModal.classList.remove('flex');
+                collabModal.classList.add('hidden');
+                collabModal.classList.remove('flex');
+            }
+        });
+
+        // Bind Sliders to Symbiote Physics Engine
+        document.getElementById('param-reach').addEventListener('input', (e) => {
+            symbioteConfig.reach = Number(e.target.value);
+            document.getElementById('val-reach').textContent = `${e.target.value}px`;
+        });
+        document.getElementById('param-tendrils').addEventListener('input', (e) => {
+            symbioteConfig.tendrils = Number(e.target.value);
+            document.getElementById('val-tendrils').textContent = e.target.value;
+        });
+        document.getElementById('param-goo').addEventListener('input', (e) => {
+            symbioteConfig.gooBlur = Number(e.target.value);
+            document.getElementById('val-goo').textContent = e.target.value;
+            document.getElementById('goo-blur').setAttribute('stdDeviation', e.target.value);
+        });
+        document.getElementById('param-magnet').addEventListener('input', (e) => {
+            symbioteConfig.magnet = Number(e.target.value);
+            document.getElementById('val-magnet').textContent = e.target.value;
+        });
+        document.getElementById('param-spikes').addEventListener('input', (e) => {
+            symbioteConfig.aggression = Number(e.target.value);
+            document.getElementById('val-spikes').textContent = e.target.value;
+        });
+
+        document.querySelectorAll('.pigment-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                symbioteConfig.pigment = btn.getAttribute('data-pigment');
+            });
+        });
+
+        document.getElementById('reset-physics-btn').addEventListener('click', () => {
+            symbioteConfig.reach = 210;
+            symbioteConfig.tendrils = 7;
+            symbioteConfig.gooBlur = 11;
+            symbioteConfig.magnet = 0.35;
+            symbioteConfig.aggression = 0.42;
+            symbioteConfig.pigment = 'adaptive';
+
+            document.getElementById('param-reach').value = 210;
+            document.getElementById('val-reach').textContent = '210px';
+            document.getElementById('param-tendrils').value = 7;
+            document.getElementById('val-tendrils').textContent = '7';
+            document.getElementById('param-goo').value = 11;
+            document.getElementById('val-goo').textContent = '11';
+            document.getElementById('goo-blur').setAttribute('stdDeviation', 11);
+            document.getElementById('param-magnet').value = 0.35;
+            document.getElementById('val-magnet').textContent = '0.35';
+            document.getElementById('param-spikes').value = 0.42;
+            document.getElementById('val-spikes').textContent = '0.42';
+            triggerSonicImpulse(0.9);
+        });
+
+        // Boot Everything on Window Load
+        window.onload = function () {
+            initThreeSymbiote();
+            resizeCanvases();
+            setupVenomButtons();
+            animateLoop();
+        };
+    </script>
+</body>
+</html>
